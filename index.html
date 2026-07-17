@@ -170,6 +170,7 @@
 
   let scene, camera, renderer, clock;
   let pandaRig, pandaModel, thrusterFlames = [], thrusterLights = [];
+  let legL, legR, armL, armR;
   let starField;
   const collectibles = [];
   const friends = [];
@@ -940,8 +941,8 @@
       arm.rotation.z = sign * 0.25;
       return arm;
     }
-    const armL = makeArm(-1);
-    const armR = makeArm(1);
+    armL = makeArm(-1);
+    armR = makeArm(1);
     pandaModel.add(armL, armR);
 
     // --- Beine ---
@@ -956,8 +957,8 @@
       leg.position.set(sign * 0.26, 0.42, 0);
       return leg;
     }
-    const legL = makeLeg(-1);
-    const legR = makeLeg(1);
+    legL = makeLeg(-1);
+    legR = makeLeg(1);
     pandaModel.add(legL, legR);
 
     // --- Jetpack-Rucksack ---
@@ -1114,18 +1115,32 @@
     // Ausrichtung: Panda schaut in seine Laufrichtung
     pandaRig.rotation.y = moveYaw;
 
-    // Lauf-Bob-Animation
+    // Lauf-Animation: Beine pendeln gegenläufig, Arme schwingen im
+    // natürlichen Kreuzgang (rechter Arm mit linkem Bein synchron), dazu
+    // Auf-Ab-Bob und leichtes Wiegen des Oberkörpers.
     if (moving && grounded) {
       walkCycle += delta * 9;
+      const legSwing = Math.sin(walkCycle) * 0.62;
+      const armSwing = Math.sin(walkCycle) * 0.42;
       pandaModel.position.y = Math.abs(Math.sin(walkCycle)) * 0.09;
-      pandaModel.rotation.z = Math.sin(walkCycle) * 0.03;
+      pandaModel.rotation.z = Math.sin(walkCycle) * 0.035;
+      legL.rotation.x = legSwing;
+      legR.rotation.x = -legSwing;
+      armL.rotation.x = -armSwing;
+      armR.rotation.x = armSwing;
     } else {
       pandaModel.position.y = THREE.MathUtils.lerp(pandaModel.position.y, 0, delta * 8);
       pandaModel.rotation.z = THREE.MathUtils.lerp(pandaModel.rotation.z, 0, delta * 8);
+      legL.rotation.x = THREE.MathUtils.lerp(legL.rotation.x, 0, delta * 8);
+      legR.rotation.x = THREE.MathUtils.lerp(legR.rotation.x, 0, delta * 8);
+      armL.rotation.x = THREE.MathUtils.lerp(armL.rotation.x, 0, delta * 8);
+      armR.rotation.x = THREE.MathUtils.lerp(armR.rotation.x, 0, delta * 8);
     }
 
-    // Flugneigung nach vorn + Rucksackflammen
-    const targetTilt = isThrusting ? (moving ? -0.35 : -0.12) : 0;
+    // Neigung: leichter Vorwärtslehn beim Laufen, stärkere Neigung im Flug
+    let targetTilt = 0;
+    if (isThrusting) targetTilt = moving ? -0.35 : -0.12;
+    else if (moving && grounded) targetTilt = -0.08;
     pandaModel.rotation.x = THREE.MathUtils.lerp(pandaModel.rotation.x, targetTilt, delta * 6);
 
     const flameTarget = isThrusting ? 1 : 0;
